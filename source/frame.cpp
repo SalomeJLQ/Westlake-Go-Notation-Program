@@ -251,6 +251,7 @@ void frame::OnRightUp(wxMouseEvent& event)
 
     menuEdit->Enable(ID_Undo, can.can_undo());
     menuEdit->Enable(ID_Redo, can.can_redo());
+	px=x,py=y;
 }
 
 void frame::OnFlipKeep(wxCommandEvent& event)
