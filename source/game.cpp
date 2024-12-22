@@ -8,7 +8,7 @@ game_board::game_board() {
 		board[0][i] = board[i][0] = board[20][i] = board[i][20] = 42;
 	for (int i = 1; i <= 19; ++ i)
 		for (int j = 1; j <= 19; ++ j)
-			record[i][j] = board[i][j] = flags[i][j] = 0;
+			record[i][j] = board[i][j] = flags[i][j] = dead_stones[i][j]=0;
 }
 
 void game_board::remove_dead(int colour) {
@@ -147,4 +147,34 @@ bool game_board::can_place(int colour, int x, int y) {
 	if(board[ux][uy]!=-colour)tagg=0;
 	tx=tagg?ux:0,ty=tagg?uy:0;
 	return true;
+}
+
+bool game_board::is_dead(int x, int y) {
+    return dead_stones[x][y];
+}
+
+// 添加死棋标记
+void game_board::mark_dead(int x, int y) {
+    if (board[x][y] != Blank) {  // 只有棋子才能被标记为死棋
+        dead_stones[x][y] = true;
+    }
+}
+
+// 移除死棋标记
+void game_board::unmark_dead(int x, int y) {
+    if (dead_stones[x][y]) {
+        dead_stones[x][y] = false;
+        // 撤回操作时，可以恢复棋盘上的棋子，假设恢复为黑或白
+        board[x][y] = (x + y) % 2 == 0 ? Black : White;  // 假设根据坐标恢复棋子
+    }
+}
+
+// 处理点击事件，标记或撤回死棋标记
+void game_board::on_click(int x, int y) {
+    // 如果当前点击的位置已经是死棋，撤回标记
+    if (is_dead(x, y)) {
+        unmark_dead(x, y);
+    } else {
+        mark_dead(x, y);
+    }
 }

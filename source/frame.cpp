@@ -15,6 +15,9 @@ frame::frame()
         wxDefaultPosition, wxDefaultSize,
         wxCAPTION | wxMINIMIZE_BOX | wxCLOSE_BOX | wxSYSTEM_MENU)
 {
+    game_board* initial_board = new game_board();
+    can.set_game_board(initial_board);
+
     // wxBoxSizer* sizer = new wxBoxSizer{wxVERTICAL};
     // m_canvas = new wxPanel(this);
     // sizer->Add(m_canvas, 1, wxEXPAND);
@@ -22,6 +25,10 @@ frame::frame()
     // Layout();
 
     auto mainMenu = new wxMenuBar(0l);
+auto menuGame = new wxMenu(0l);
+menuGame->Append(ID_EndGame, wxT("结束下棋(&G)\tCtrl-G"), wxT("结束当前对局，进入死子标记阶段。"));
+mainMenu->Append(menuGame, wxT("游戏(&G)"));
+Bind(wxEVT_MENU, &frame::OnEndGame, this, ID_EndGame);  // 使用 frame 类名
 
     auto menuFile = new wxMenu(0l);
     menuFile->Append(ID_Open, wxT("打开(&O)\tCtrl-O"), wxT("打开以前的局面。"));  //打开存档
@@ -113,6 +120,17 @@ void frame::OnOpen(wxCommandEvent& event)
     can.load(input_stream);
 
     Refresh(false);
+}
+void frame::OnEndGame(wxCommandEvent& event)
+{
+    game_board* current_board = can.get_current_board();
+    if (!current_board)
+    {
+        wxLogError("当前棋盘未初始化，无法结束游戏。");
+        return;
+    }
+    isDeadPhase = 1;  // 进入标记死棋阶段
+    wxMessageBox(_("游戏结束，您现在可以标记死棋。"), _("提示"), wxOK | wxICON_INFORMATION, this);
 }
 
 void frame::OnSave(wxCommandEvent& event)
@@ -209,25 +227,39 @@ int px=0,py=0,ppx=0,ppy=0;
 
 void frame::OnLeftUp(wxMouseEvent& event)
 {
-    // 落子位置
+    // 获取鼠标点击位置
     wxPoint pos = event.GetPosition();
     int x = (pos.x + gridSize / 2) / gridSize;
     int y = (pos.y + gridSize / 2) / gridSize;
-    // 落子颜色
+
+    // 如果处于死棋标记阶段，判断点击的是否是死棋标记
+    if (isDeadPhase) {
+        if(can.board.top()[x][y] != game_board::Black && can.board.top()[x][y] != game_board::White) wxLogError("你尝试标记的这个点并没有棋子。");
+        // 如果当前位置是死棋，取消标记
+        if (can.is_dead(x, y)) {
+            can.remove_dead_marker(x, y);  // 移除死棋标记
+        } else {
+            // 如果当前位置不是死棋，进行标记
+            can.add_dead_marker(x, y);     // 添加死棋标记
+        }
+        Refresh(false);  // 刷新界面
+        return;
+    }
+
+    // 如果是正常的落子操作
     int thisColour = gameMode == 0 ? -colours.top() : game_board::Black;
-    if (! can.can_place(thisColour, x, y))
+    if (!can.can_place(thisColour, x, y))
         return;
     colours.push(thisColour);
-    while (! colRedos.empty())
+    while (!colRedos.empty())
         colRedos.pop();
     // 开始落子
     can.place(thisColour, x, y);
-    // can.get_board()[x][y] = lastColour;
     Refresh(false);
 
     menuEdit->Enable(ID_Undo, can.can_undo());
     menuEdit->Enable(ID_Redo, can.can_redo());
-	ppx=px,ppy=py,px=x,py=y;
+    ppx = px, ppy = py, px = x, py = y;
 }
 
 void frame::OnRightUp(wxMouseEvent& event)

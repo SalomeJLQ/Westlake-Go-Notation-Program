@@ -16,13 +16,16 @@ enum MenuID
     ID_ModeBlackWhite,
     ID_About
 };
-
+enum {
+    ID_EndGame = wxID_HIGHEST + 1,
+    // Other ID constants
+};
 class frame : public wxFrame
 {
 private:
+    bool isDeadPhase = false;
     int gameMode{0};
     // wxPanel* m_canvas;
-    canvas can;
     int lastColour{game_board::White};
     wxMenu* menuEdit;
 
@@ -30,7 +33,8 @@ private:
     std::string file;
 public:
     frame();
-
+    canvas can;
+    void OnEndGame(wxCommandEvent& event);
     void OnOpen(wxCommandEvent& event);
     void OnSave(wxCommandEvent& event);
     void OnSaveAs(wxCommandEvent& event);

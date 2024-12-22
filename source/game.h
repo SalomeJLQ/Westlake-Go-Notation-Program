@@ -26,8 +26,13 @@ protected:
     void remove(int colour, int x, int y);
     void clear_flags();
     void clear_lib_flags();
+    void mark_dead(int x, int y);
+    void unmark_dead(int x, int y);
+    void on_click(int x, int y);
 public:
+    bool is_dead(int x, int y);
     int record[21][21];
+    bool dead_stones[21][21];
     static constexpr int White = -1;
     static constexpr int Black = 1;
     static constexpr int Blank = 0;

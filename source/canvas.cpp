@@ -14,11 +14,10 @@ canvas::canvas() :
     stone{
         {wxT("BLACK"), wxBITMAP_TYPE_PNG_RESOURCE},
         {wxT("WHITE"), wxBITMAP_TYPE_PNG_RESOURCE}},
-    palete{sizeTotal, sizeTotal}
+    palete(sizeTotal, sizeTotal)
 {
     selectBackgroundFromPreset();
     preparePalete();
-    // 准备记录棋局
     board.push(game_board());
 }
 
@@ -100,7 +99,18 @@ void canvas::preparePalete()
 
     memDC.SelectObject(wxNullBitmap);
 }
-
+void canvas::set_game_board(const game_board& new_board)
+{
+    while (!board.empty())
+        board.pop(); // 清空历史记录
+    board.push(new_board); // 设置新棋盘
+}
+game_board* canvas::get_current_board()
+{
+    if (board.empty())
+        return nullptr;
+    return &board.top();
+}
 void canvas::realise(wxDC& target)
 {
     // 画棋盘背景
@@ -114,47 +124,64 @@ void canvas::realise(wxDC& target)
 
     // 画棋子
     for (int i = 1; i <= 19; ++i)
-        for (int j = 1; j <= 19; ++j)
+    for (int j = 1; j <= 19; ++j)
+    {
+        const int x{i * gridSize - gridSize / 2}, y{j * gridSize - gridSize / 2};
+        wxMemoryDC* curStone;
+        if (board.top()[i][j] == game_board::Black)
         {
-            const int x{i * gridSize - gridSize / 2}, y{j * gridSize - gridSize / 2};
-            wxMemoryDC* curStone;
-            if (board.top()[i][j] == game_board::Black)
-            {
-                curStone = stoneDC;
-                target.SetTextForeground(*wxWHITE);
-            }
-            else if (board.top()[i][j] == game_board::White)
-            {
-                curStone = stoneDC + 1;
-                target.SetTextForeground(*wxBLACK);
-            }
-            if (board.top()[i][j] != game_board::Blank)
-            {
-                target.StretchBlit(wxPoint{x, y}, wxSize{gridSize, gridSize}, curStone, wxPoint{0, 0}, sz);
-                
-                int cnt = board.top().record[i][j];
-                if (cnt != 0)
-                {
-                    wxString label = wxString::Format("%d", cnt);
+            curStone = stoneDC;
+            target.SetTextForeground(*wxWHITE);
+        }
+        else if (board.top()[i][j] == game_board::White)
+        {
+            curStone = stoneDC + 1;
+            target.SetTextForeground(*wxBLACK);
+        }
 
-                    // 如果数字 >= 100，使用小一点的字体
-                    if (cnt >= 100) {
-                        target.SetFont(wxFont{wxFontInfo{8}.Bold().FaceName("Microsoft JhengHei")}); // 小字体
-                    } else {
-                        target.SetFont(wxFont{wxFontInfo{10}.Bold().FaceName("Microsoft JhengHei")}); // 默认字体
-                    }
+        // 画棋子
+        if (board.top()[i][j] != game_board::Blank)
+        {
+            target.StretchBlit(wxPoint{x, y}, wxSize{gridSize, gridSize}, curStone, wxPoint{0, 0}, sz);
 
-                    wxSize textSize = target.GetTextExtent(label);
-                    wxPoint pos{i * gridSize - textSize.x / 2, j * gridSize - textSize.y / 2};
-                    target.DrawText(label, pos);
+            // 如果位置有记录，画数字
+            int cnt = board.top().record[i][j];
+            if (cnt != 0)
+            {
+                wxString label = wxString::Format("%d", cnt);
+
+                // 如果数字 >= 100，使用小一点的字体
+                if (cnt >= 100) {
+                    target.SetFont(wxFont{wxFontInfo{8}.Bold().FaceName("Microsoft JhengHei")}); // 小字体
+                } else {
+                    target.SetFont(wxFont{wxFontInfo{10}.Bold().FaceName("Microsoft JhengHei")}); // 默认字体
                 }
+
+                wxSize textSize = target.GetTextExtent(label);
+                wxPoint pos{i * gridSize - textSize.x / 2, j * gridSize - textSize.y / 2};
+                target.DrawText(label, pos);
+            }
+
+            //如果当前位置是死棋，绘制红叉
+            if (can->is_dead(i, j)) {
+                // 红叉位置
+                int xPos = i * gridSize;
+                int yPos = j * gridSize;
+
+                target.SetPen(wxPen(*wxRED, 5));  // 设置红色线条，2像素宽
+                target.SetBrush(*wxTRANSPARENT_BRUSH);  // 设置透明刷子，避免填充
+                
+                // 绘制红色交叉线
+                target.DrawLine(xPos - gridSize / 2, yPos - gridSize / 2, xPos + gridSize / 2, yPos + gridSize / 2);  // 对角线1
+                target.DrawLine(xPos - gridSize / 2, yPos + gridSize / 2, xPos + gridSize / 2, yPos - gridSize / 2);  // 对角线2
             }
         }
+    }
+
 
     // 恢复默认字体
     target.SetFont(wxNullFont);
 }
-
 
 void canvas::load(std::istream& input)
 {
