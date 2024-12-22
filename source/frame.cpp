@@ -5,6 +5,8 @@
 #include <wx/filedlg.h>
 #include <fstream>
 #include "frame.h"
+#include <vector>
+#include <functional>
 // #include <iostream>
 // using std::cout;
 // using std::endl;
@@ -234,17 +236,71 @@ void frame::OnLeftUp(wxMouseEvent& event)
 
     // 如果处于死棋标记阶段，判断点击的是否是死棋标记
     if (isDeadPhase) {
-        if(can.board.top()[x][y] != game_board::Black && can.board.top()[x][y] != game_board::White) wxLogError("你尝试标记的这个点并没有棋子。");
-        // 如果当前位置是死棋，取消标记
-        if (can.is_dead(x, y)) {
-            can.remove_dead_marker(x, y);  // 移除死棋标记
-        } else {
-            // 如果当前位置不是死棋，进行标记
-            can.add_dead_marker(x, y);     // 添加死棋标记
+        // 获取当前棋盘的顶部状态
+        game_board& current_board = can.board.top();  // 获取当前的棋盘
+
+        // 判断当前位置是否有棋子
+        if (current_board[x][y] != game_board::Black && current_board[x][y] != game_board::White) {
+            wxLogError("你尝试标记的这个点并没有棋子。");
+            return;
         }
-        Refresh(false);  // 刷新界面
+
+        // 获取当前位置的棋子颜色
+        int color = current_board[x][y];
+
+        // 存储已访问的棋子位置
+        std::vector<std::vector<bool>> visited(25, std::vector<bool>(25, false));
+        std::vector<std::pair<int, int>> connected_stones;  // 存储连通的棋子位置
+
+        // 四个方向的偏移量 (上，下，左，右)
+        int directions[4][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+
+        // 使用DFS来查找连通块
+        std::function<void(int, int)> dfs = [&](int cx, int cy) {
+            // 如果超出边界或已经访问过，返回
+            if (cx < 0 || cx >20 || cy < 0 || cy >20 || visited[cx][cy])
+                return;
+
+            // 如果当前位置颜色与目标颜色不同，返回
+            if (current_board[cx][cy] != color)
+                return;
+
+            // 标记为已访问
+            visited[cx][cy] = true;
+
+            // 记录当前棋子的位置
+            connected_stones.push_back({cx, cy});
+
+            // 递归访问四个方向的相邻位置
+            for (const auto& direction : directions) {
+                dfs(cx + direction[0], cy + direction[1]);
+            }
+        };
+
+        // 从点击的位置开始进行DFS搜索
+        dfs(x, y);
+
+        // 如果连通块中有棋子，开始标记或取消标记
+        if (!connected_stones.empty()) {
+            // 判断是否已经是死棋标记，如果是，则取消标记
+            bool is_dead = can.is_dead(x, y);  // 这里的 `is_dead` 需要根据实际情况实现
+
+            // 遍历连通块中的所有棋子，进行标记或取消标记
+            for (const auto& stone : connected_stones) {
+                int cx = stone.first;
+                int cy = stone.second;
+
+                if (is_dead) {
+                    can.remove_dead_marker(cx, cy);  // 移除死棋标记
+                } else {
+                    can.add_dead_marker(cx, cy);     // 添加死棋标记
+                }
+            }
+            Refresh(false);  // 刷新界面
+        }
         return;
     }
+
 
     // 如果是正常的落子操作
     int thisColour = gameMode == 0 ? -colours.top() : game_board::Black;
